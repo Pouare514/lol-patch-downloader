@@ -25,6 +25,7 @@ export interface DownloadTask {
   endTime?: Date;
   filePath?: string; // Chemin du fichier téléchargé
   downloaded?: string; // Quantité téléchargée (ex: "15.3 MB")
+  outputPath?: string; // Dossier de destination
 }
 
 // Types pour les paramètres

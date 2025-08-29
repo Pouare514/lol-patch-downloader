@@ -5,8 +5,22 @@ import { DownloadTask } from '@/types';
 export function useDownloads() {
   const [downloads, setDownloads] = useState<DownloadTask[]>([]);
   const [loading, setLoading] = useState(false);
+  const [downloadPath, setDownloadPath] = useState<string | null>(null);
 
-
+  // Sélectionner le dossier de destination
+  const selectDownloadFolder = async () => {
+    try {
+      const path = await safeInvoke('select_download_folder');
+      if (path && typeof path === 'string') {
+        setDownloadPath(path);
+        return path;
+      }
+      return null;
+    } catch (error) {
+      console.error('Erreur lors de la sélection du dossier:', error);
+      return null;
+    }
+  };
 
   // Démarrer un téléchargement
   const startDownload = async (manifest: string, language: string, content: string) => {
@@ -16,8 +30,24 @@ export function useDownloads() {
       console.log('📄 Manifest:', manifest);
       console.log('🌍 Language:', language);
       console.log('📦 Content:', content);
+      console.log('📁 Dossier de destination:', downloadPath);
       
-      const taskId = await safeInvoke('start_download', { manifest, language, content });
+      // Toujours permettre à l'utilisateur de choisir le dossier
+      let outputPath = downloadPath;
+      if (!outputPath) {
+        outputPath = await selectDownloadFolder();
+      }
+      // Si toujours pas de chemin, utiliser un dossier par défaut
+      if (!outputPath) {
+        outputPath = "downloads"; // Dossier relatif par défaut
+      }
+      
+      const taskId = await safeInvoke('start_download', { 
+        manifest, 
+        language, 
+        content, 
+        output_path: outputPath 
+      });
       console.log('🎯 TaskId reçu:', taskId);
       
       // Si on n'est pas dans Tauri, afficher un message d'erreur
@@ -35,6 +65,7 @@ export function useDownloads() {
         speed: '0 MB/s',
         eta: '--',
         startTime: new Date(),
+        outputPath: outputPath,
       };
       
       setDownloads(prev => [...prev, newTask]);
@@ -134,6 +165,8 @@ export function useDownloads() {
   return {
     downloads,
     loading,
+    downloadPath,
+    selectDownloadFolder,
     startDownload,
     pauseDownload,
     resumeDownload,

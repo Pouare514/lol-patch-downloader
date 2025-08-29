@@ -14,9 +14,10 @@ export default function Home() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [showSpecialVersions, setShowSpecialVersions] = useState(false); // Par défaut : versions live uniquement
   const [showCompleteVersionsOnly, setShowCompleteVersionsOnly] = useState(true); // Nouvel état pour les versions complètes uniquement
+  const [notifications, setNotifications] = useState<Array<{id: string, type: 'success' | 'error' | 'info', message: string}>>([]);
   
   const { manifests, loading, error, filters, setFilters, preferredServer, setPreferredServer, refetch } = useManifests(showSpecialVersions, showCompleteVersionsOnly);
-  const { downloads, startDownload, pauseDownload, resumeDownload, cancelDownload, cleanupCompleted } = useDownloads();
+  const { downloads, downloadPath, selectDownloadFolder, startDownload, pauseDownload, resumeDownload, cancelDownload, cleanupCompleted } = useDownloads();
 
   // Auto-refresh des manifestes toutes les 6 heures
   useEffect(() => {
@@ -27,26 +28,65 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [refetch]);
 
+  // Fonctions utilitaires pour les notifications
+  const addNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    const id = Date.now().toString();
+    setNotifications(prev => [...prev, { id, type, message }]);
+    // Auto-remove après 5 secondes
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  };
+
+  const removeNotification = (id: string) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
   const handleDownload = async (manifest: PatchManifest) => {
     try {
-      await startDownload(manifest.manifest, language, content);
+      const taskId = await startDownload(manifest.manifest, language, content);
+      addNotification('success', `Téléchargement de ${manifest.version} démarré`);
+      return taskId;
     } catch (error) {
       console.error('Erreur lors du téléchargement:', error);
+      addNotification('error', `Erreur lors du démarrage du téléchargement: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+      throw error;
     }
   };
 
   const handleBulkDownload = async () => {
-    const selectedManifests = manifests.filter(m => 
-      m.languages.includes(language) && 
+    const selectedManifests = manifests.filter(m =>
+      m.languages.includes(language) &&
       (content === '' || m.content.toLowerCase().includes(content.toLowerCase()))
     );
-    
+
+    if (selectedManifests.length === 0) {
+      addNotification('info', 'Aucun patch trouvé avec les filtres actuels');
+      return;
+    }
+
+    addNotification('info', `Démarrage du téléchargement de ${Math.min(selectedManifests.length, 3)} patch(es)...`);
+
     for (const manifest of selectedManifests.slice(0, 3)) { // Limite à 3 téléchargements simultanés
       try {
-        await startDownload(manifest.manifest, language, content);
+        await handleDownload(manifest);
       } catch (error) {
         console.error(`Erreur lors du téléchargement de ${manifest.version}:`, error);
+        addNotification('error', `Échec du téléchargement de ${manifest.version}`);
       }
+    }
+  };
+
+  const handleSelectFolder = async () => {
+    try {
+      const path = await selectDownloadFolder();
+      if (path) {
+        addNotification('success', `✅ Dossier sélectionné: ${path.split(/[/\\]/).pop()}`);
+      } else {
+        addNotification('info', 'ℹ️ Aucun dossier sélectionné');
+      }
+    } catch {
+      addNotification('error', 'Erreur lors de la sélection du dossier');
     }
   };
 
@@ -102,6 +142,34 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-black text-white" style={{ fontFamily: 'var(--font-lol)' }}>
+      {/* Notifications Toast */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`p-4 rounded-lg shadow-lg backdrop-blur-sm border border-gray-700/50 flex items-center justify-between min-w-80 ${
+              notification.type === 'success' ? 'bg-green-600/90' :
+              notification.type === 'error' ? 'bg-red-600/90' :
+              'bg-blue-600/90'
+            }`}
+          >
+            <div className="flex items-center space-x-3">
+              <span className="text-lg">
+                {notification.type === 'success' ? '✅' :
+                 notification.type === 'error' ? '❌' : 'ℹ️'}
+              </span>
+              <span className="text-sm font-medium">{notification.message}</span>
+            </div>
+            <button
+              onClick={() => removeNotification(notification.id)}
+              className="text-white/70 hover:text-white text-lg"
+            >
+              ×
+            </button>
+          </div>
+        ))}
+      </div>
+
       {/* Header */}
       <header className="bg-gray-800/80 backdrop-blur-md border-b border-gray-700/50 p-6 sticky top-0 z-50 shadow-lg">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -438,6 +506,38 @@ export default function Home() {
               </div>
             )}
 
+            {/* Informations sur le dossier de destination */}
+            <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-6 shadow-xl border border-gray-700/30 mb-6">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center space-x-3 flex-1">
+                  <span className="text-lg">📂</span>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-gray-300">Dossier de destination</h3>
+                    {downloadPath ? (
+                      <>
+                        <p className="text-xs text-gray-400 break-all font-mono bg-gray-700/30 p-2 rounded mt-1">
+                          {downloadPath}
+                        </p>
+                        <p className="text-xs text-green-400 mt-1">
+                          ✅ Prêt pour le téléchargement
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-yellow-400 mt-1">
+                        ⚠️ Aucun dossier sélectionné
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={handleSelectFolder}
+                  className="bg-purple-600 hover:bg-purple-700 hover:scale-105 px-4 py-2 rounded-lg text-xs font-medium text-white transition-all duration-200 shadow-lg ml-4"
+                >
+                  {downloadPath ? 'Changer' : 'Sélectionner'}
+                </button>
+              </div>
+            </div>
+
             {/* Téléchargements en cours */}
             <div className="bg-gray-800/50 backdrop-blur-md rounded-2xl p-8 shadow-xl border border-gray-700/30">
               <div className="flex justify-between items-center mb-4">
@@ -471,31 +571,59 @@ export default function Home() {
                       <span>⚡ {download.speed}</span>
                       <span>⏱️ {download.eta}</span>
                     </div>
+
+                    {/* Dossier de destination */}
+                    {download.outputPath && (
+                      <div className="text-xs text-gray-500 mb-3">
+                        📁 {download.outputPath.split(/[/\\]/).pop()}
+                      </div>
+                    )}
                     
                     {/* Contrôles */}
                     <div className="flex gap-2">
                       {download.status === 'downloading' && (
-                                              <button
-                        onClick={() => pauseDownload(download.id)}
-                        className="bg-yellow-600/80 backdrop-blur-sm hover:bg-yellow-500/80 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-                      >
-                        ⏸️ Pause
-                      </button>
-                    )}
-                    {download.status === 'paused' && (
-                      <button
-                        onClick={() => resumeDownload(download.id)}
-                        className="bg-green-600/80 backdrop-blur-sm hover:bg-green-500/80 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-                      >
-                        ▶️ Reprendre
-                      </button>
-                    )}
-                    <button
-                      onClick={() => cancelDownload(download.id)}
-                      className="bg-red-600/80 backdrop-blur-sm hover:bg-red-500/80 px-4 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
-                    >
-                      ❌ Annuler
-                    </button>
+                        <button
+                          onClick={() => {
+                            pauseDownload(download.id);
+                            addNotification('info', 'Téléchargement mis en pause');
+                          }}
+                          className="bg-yellow-600/80 backdrop-blur-sm hover:bg-yellow-500/80 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+                        >
+                          ⏸️ Pause
+                        </button>
+                      )}
+                      {download.status === 'paused' && (
+                        <button
+                          onClick={() => {
+                            resumeDownload(download.id);
+                            addNotification('success', 'Téléchargement repris');
+                          }}
+                          className="bg-green-600/80 backdrop-blur-sm hover:bg-green-500/80 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+                        >
+                          ▶️ Reprendre
+                        </button>
+                      )}
+                      {download.status === 'completed' && (
+                        <span className="bg-green-600/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-medium">
+                          ✅ Terminé
+                        </span>
+                      )}
+                      {download.status === 'error' && (
+                        <span className="bg-red-600/80 backdrop-blur-sm px-3 py-2 rounded-lg text-xs font-medium">
+                          ❌ Erreur
+                        </span>
+                      )}
+                      {download.status !== 'completed' && download.status !== 'error' && (
+                        <button
+                          onClick={() => {
+                            cancelDownload(download.id);
+                            addNotification('info', 'Téléchargement annulé');
+                          }}
+                          className="bg-red-600/80 backdrop-blur-sm hover:bg-red-500/80 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 hover:scale-105"
+                        >
+                          ❌ Annuler
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}

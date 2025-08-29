@@ -13,6 +13,7 @@ pub fn run() {
       commands::resume_download,
       commands::cancel_download,
       commands::get_download_progress,
+      commands::select_download_folder,
     ])
     .setup(|app| {
       if cfg!(debug_assertions) {

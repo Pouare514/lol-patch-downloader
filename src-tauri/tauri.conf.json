@@ -33,7 +33,7 @@
       "icons/icon.ico"
     ],
     "resources": [
-      "../assets/rman-dl.exe"
+      "assets/rman-dl.exe"
     ]
   }
 }
