@@ -1,0 +1,137 @@
+@import "tailwindcss";
+
+/* Polices Exo personnalisées */
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Thin.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-ExtraLight.ttf') format('truetype');
+  font-weight: 200;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-ExtraBold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Exo';
+  src: url('/fonts/Exo-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Couleurs basées sur le logo */
+  --lol-green-light: #acdaab;
+  --lol-green-dark: #83b383;
+  --lol-green-gradient: linear-gradient(135deg, #acdaab 0%, #83b383 100%);
+  --lol-white: #ffffff;
+  --lol-gray-light: #f8f9fa;
+  --lol-gray-medium: #6c757d;
+  --lol-gray-dark: #343a40;
+  --lol-black: #000000;
+  
+  /* Couleurs de base */
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --font-lol: 'Exo', 'Arial', sans-serif;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-lol);
+  font-weight: 400;
+  line-height: 1.6;
+}
+
+/* Classes utilitaires pour les couleurs LoL */
+.lol-gradient {
+  background: var(--lol-green-gradient);
+}
+
+.lol-green-light {
+  color: var(--lol-green-light);
+}
+
+.lol-green-dark {
+  color: var(--lol-green-dark);
+}
+
+.lol-white {
+  color: var(--lol-white);
+}
+
+/* Animations personnalisées */
+@keyframes lol-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px var(--lol-green-light);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--lol-green-light), 0 0 30px var(--lol-green-dark);
+  }
+}
+
+.lol-glow {
+  animation: lol-glow 2s ease-in-out infinite alternate;
+}
