@@ -20,8 +20,6 @@
 # production
 /build
 
-# tauri
-/src-tauri/
 
 # misc
 .DS_Store
